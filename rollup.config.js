@@ -109,6 +109,7 @@ export default [
     plugins: [
       createFlowBundlePlugin,
       babel(getBabelOptions()),
+      nodeGlobals(),
       replace({'process.env.VERSION': JSON.stringify(pkg.version)}),
       sizeSnapshot(snapshotOptions)
     ]
@@ -120,6 +121,7 @@ export default [
     external,
     plugins: [
       babel(getBabelOptions()),
+      nodeGlobals(),
       replace({'process.env.VERSION': JSON.stringify(pkg.version)}),
       sizeSnapshot(snapshotOptions)
     ]
