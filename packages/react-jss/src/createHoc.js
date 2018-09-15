@@ -3,11 +3,11 @@ import React, {Component, type ComponentType} from 'react'
 import PropTypes from 'prop-types'
 import defaultTheming from 'theming'
 import type {StyleSheet} from 'jss'
+import hoistNonReactStatics from 'hoist-non-react-statics'
 import jss, {getDynamicStyles, SheetsManager} from './jss'
 import compose from './compose'
 import getDisplayName from './getDisplayName'
 import * as ns from './ns'
-import contextTypes from './contextTypes'
 import type {
   Options,
   Theme,
@@ -17,6 +17,7 @@ import type {
   Context,
   SubscriptionId
 } from './types'
+import {Consumer} from './JssProvider'
 
 const env = process.env.NODE_ENV
 
@@ -97,7 +98,6 @@ export default function createHOC<
     static displayName = `Jss(${displayName})`
     static InnerComponent = InnerComponent
     static contextTypes = {
-      ...contextTypes,
       ...(isThemingEnabled ? themeListener.contextTypes : {})
     }
     static propTypes = {
@@ -122,8 +122,7 @@ export default function createHOC<
       }
     }
 
-    componentWillReceiveProps(nextProps: OuterPropsType, nextContext: Context) {
-      this.context = nextContext
+    componentWillReceiveProps(nextProps: OuterPropsType) {
       const {dynamicSheet} = this.state
       if (dynamicSheet) dynamicSheet.update(nextProps)
     }
@@ -160,7 +159,7 @@ export default function createHOC<
     context: Context
 
     createState({theme, dynamicSheet}: State, {classes: userClasses}): State {
-      const contextSheetOptions = this.context[ns.sheetOptions]
+      const contextSheetOptions = this.props.sheetOptions
       if (contextSheetOptions && contextSheetOptions.disableStylesGeneration) {
         return {theme, dynamicSheet, classes: {}}
       }
@@ -218,11 +217,11 @@ export default function createHOC<
     }
 
     manage({theme, dynamicSheet}: State) {
-      const contextSheetOptions = this.context[ns.sheetOptions]
+      const contextSheetOptions = this.props.sheetOptions
       if (contextSheetOptions && contextSheetOptions.disableStylesGeneration) {
         return
       }
-      const registry = this.context[ns.sheetsRegistry]
+      const registry = this.props.sheetsRegistry
 
       const staticSheet = this.manager.manage(theme)
       if (registry) registry.add(staticSheet)
@@ -234,11 +233,11 @@ export default function createHOC<
     }
 
     get jss() {
-      return this.context[ns.jss] || optionsJss || jss
+      return this.props.jss || optionsJss || jss
     }
 
     get manager() {
-      const managers = this.context[ns.managers]
+      const managers = this.props.managers
 
       // If `managers` map is present in the context, we use it in order to
       // let JssProvider reset them when new response has to render server-side.
@@ -267,5 +266,19 @@ export default function createHOC<
     }
   }
 
-  return Jss
+  const JssWithContext = props => (
+    <Consumer>
+      {value => (
+        <Jss
+          sheetOptions={value[ns.sheetOptions]}
+          sheetsRegistry={value[ns.sheetsRegistry]}
+          jss={value[ns.jss]}
+          managers={value[ns.managers]}
+          {...props}
+        />
+      )}
+    </Consumer>
+  )
+
+  return hoistNonReactStatics(JssWithContext, Jss)
 }
